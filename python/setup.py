@@ -38,11 +38,48 @@ class CMakeBuild(build_ext):
     def build_cmake(self, ext):
         """Run CMake build process"""
 
-        # Get paths
-        source_dir = Path(__file__).parent.parent.absolute()
-        build_dir = source_dir / 'build'
-        python_dir = source_dir / 'python'
+        # Detect if we're installing from source repo or from pip (in /tmp)
+        # When pip installs, __file__ is in /tmp/pip-req-build-*/setup.py
+        # When installing from source, __file__ is in .../mcnptoolspro/python/setup.py
+        script_dir = Path(__file__).parent.absolute()
+
+        # Check if we're in the source repository (CMakeLists.txt exists in parent)
+        potential_source_dir = script_dir.parent
+        if (potential_source_dir / 'CMakeLists.txt').exists():
+            # Installing from cloned repository
+            source_dir = potential_source_dir
+            python_dir = script_dir
+        else:
+            # pip copied files to /tmp - need to find the actual source
+            # In this case, we need the user to install from the repository root
+            raise RuntimeError(
+                "\n"
+                "=" * 70 + "\n"
+                "ERROR: Cannot find CMakeLists.txt\n"
+                "\n"
+                "It looks like you're trying to install from the python/ directory\n"
+                "after pip copied files to /tmp.\n"
+                "\n"
+                "Please install using one of these methods:\n"
+                "\n"
+                "1. Quick install (recommended):\n"
+                "   pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python\n"
+                "\n"
+                "2. From cloned repository:\n"
+                "   cd mcnptoolspro/python\n"
+                "   pip install -e .\n"
+                "\n"
+                "3. Manual build first:\n"
+                "   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release\n"
+                "   cmake --build build --target _mcnptools_wrap --config Release\n"
+                "   # Copy .so (Linux/Mac) or .pyd (Windows) to python/mcnptoolspro/\n"
+                "   cd python && pip install .\n"
+                "\n"
+                "=" * 70
+            )
+
         package_dir = python_dir / 'mcnptoolspro'
+        build_dir = source_dir / 'build'
 
         # Create build directory
         build_dir.mkdir(exist_ok=True)
@@ -113,16 +150,19 @@ def get_version():
     """Extract version from CMakeLists.txt"""
     cmake_file = Path(__file__).parent.parent / 'CMakeLists.txt'
 
-    with open(cmake_file, 'r') as f:
-        for line in f:
-            if 'project(' in line and 'VERSION' in line:
-                # Extract version number
-                import re
-                match = re.search(r'VERSION\s+(\d+\.\d+\.\d+)', line)
-                if match:
-                    return match.group(1)
+    # If CMakeLists.txt exists (when installing from source), read version from it
+    if cmake_file.exists():
+        with open(cmake_file, 'r') as f:
+            for line in f:
+                if 'project(' in line and 'VERSION' in line:
+                    # Extract version number
+                    import re
+                    match = re.search(r'VERSION\s+(\d+\.\d+\.\d+)', line)
+                    if match:
+                        return match.group(1)
 
-    return '1.0.0'  # Fallback version
+    # Fallback version (used when pip copies to /tmp and CMakeLists.txt is not available)
+    return '5.3.1'
 
 
 # Read long description from README

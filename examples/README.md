@@ -8,14 +8,18 @@ This directory contains hands-on examples showing how mcnptoolspro reads filtere
 
 ## Quick Start
 
+**IMPORTANT**: Run all examples from the **project root directory**, not from `examples/`
+
 ### Run all demos (recommended for first-time users)
 
 ```bash
-cd mcnptoolspro/examples
-python run_all_demos.py
+# From the mcnptoolspro root directory
+python examples/run_all_demos.py
 ```
 
 This will run all 6 demonstrations interactively, showing you concrete results for each filter type.
+
+**Note**: If you see `ERROR: Test file not found`, make sure you're in the project root directory (`mcnptoolspro/`), not in `examples/`.
 
 ---
 
@@ -24,7 +28,8 @@ This will run all 6 demonstrations interactively, showing you concrete results f
 ### 1. No Filter (Baseline)
 
 ```bash
-python demo_filter_none.py
+# From the mcnptoolspro root directory
+python examples/demo_filter_none.py
 ```
 
 **Shows**: Baseline PTRAC with all events recorded (63 events)
@@ -44,7 +49,8 @@ History 1:
 ### 2. Event Filter
 
 ```bash
-python demo_filter_event.py
+# From the mcnptoolspro root directory
+python examples/demo_filter_event.py
 ```
 
 **MCNP input**: `ptrac event=src,bnk,ter`
@@ -64,7 +70,8 @@ FILTER EFFECT:
 ### 3. Type Filter
 
 ```bash
-python demo_filter_type.py
+# From the mcnptoolspro root directory
+python examples/demo_filter_type.py
 ```
 
 **MCNP input**: `ptrac type=n,h,t`
@@ -84,7 +91,8 @@ FILTER EFFECT:
 ### 4. Filter Card (position/angle/energy)
 
 ```bash
-python demo_filter_filter.py
+# From the mcnptoolspro root directory
+python examples/demo_filter_filter.py
 ```
 
 **MCNP input**: `ptrac filter=...`
@@ -109,7 +117,8 @@ FILTER EFFECT:
 ### 5. Tally Filter
 
 ```bash
-python demo_filter_tally.py
+# From the mcnptoolspro root directory
+python examples/demo_filter_tally.py
 ```
 
 **MCNP input**: `ptrac tally=4`
@@ -128,7 +137,8 @@ NOTE: Tally filter records ONLY particles that contribute to
 ### 6. Combined Filters (Maximum reduction)
 
 ```bash
-python demo_filter_all.py
+# From the mcnptoolspro root directory
+python examples/demo_filter_all.py
 ```
 
 **MCNP input**: `ptrac event=src,bnk,ter type=n,h,t tally=4 filter=100`

@@ -1,0 +1,21 @@
+# Include important files from parent directory
+include ../CMakeLists.txt
+include ../README.md
+include ../README_MCNPTOOLSPRO.md
+include ../LICENSE
+
+# Include all C++ source files needed for building
+recursive-include ../libmcnptools *.cpp *.hpp *.h
+recursive-include ../mcnptools *.cpp *.hpp *.h
+
+# Include HDF5 DLL for Windows
+include mcnptoolspro/hdf5.dll
+
+# Include Python package files
+recursive-include mcnptoolspro *.py
+
+# Exclude build artifacts
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude *.so
+global-exclude *.pyd

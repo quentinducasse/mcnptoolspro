@@ -4,9 +4,36 @@
 
 ---
 
-## 📦 Quick Install (Recommended)
+## 📦 Quick Install 
 
-### From GitHub (no clone needed)
+### Prerequisites
+
+Before installing, ensure you have the **minimum required versions**:
+
+- **Python 3.7+** (check with `python3 --version`)
+- **CMake 3.13+** (check with `cmake --version`)
+- **pip** (latest version recommended)
+
+**Ubuntu/Debian users**: If your versions are too old, upgrade them first:
+
+```bash
+# Check current versions
+python3 --version
+cmake --version
+
+# If Python < 3.7, upgrade (Ubuntu 18.04+)
+sudo apt update
+sudo apt install python3.8 python3-pip
+
+# If CMake < 3.13, upgrade via pip
+pip3 install --upgrade cmake
+
+# Verify versions are sufficient
+python3 --version  # Should show >= 3.7
+cmake --version    # Should show >= 3.13
+```
+
+### From GitHub (no clone needed) 
 
 ```bash
 pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
@@ -18,14 +45,13 @@ pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=
 
 ```python
 import mcnptoolspro as m
-ptrac = m.Ptrac('file.ptrac', m.Ptrac.ASC_PTRAC)
 ```
 
 ---
 
-## 🔧 Install from Source (Advanced)
+## 🔧 Install from Source (Recommended)
 
-If you want to **modify the code** or **contribute**, install from source:
+For **development**, **contributing**, or **modifying the code**:
 
 ### 1️⃣ Clone the repository
 
@@ -34,23 +60,48 @@ git clone https://github.com/quentinducasse/mcnptoolspro.git
 cd mcnptoolspro
 ```
 
-### 2️⃣ Install (choose one method)
-
-#### **Method A: Direct pip install** (standard)
-
-```bash
-cd python
-pip install .
-```
-
-#### **Method B: Editable install** (for development)
+### 2️⃣ Install in editable mode
 
 ```bash
 cd python
 pip install -e .
 ```
 
-With `-e`, changes to Python code are immediately active (no reinstall needed).
+**What happens automatically:**
+1. ✅ CMake detects your system and configures the build
+2. ✅ C++ extension is compiled with optimizations (`-DCMAKE_BUILD_TYPE=Release`)
+3. ✅ Compiled wrapper is placed in `python/mcnptoolspro/_mcnptools_wrap.so` (or `.pyd` on Windows)
+4. ✅ Python package is installed in **editable mode**
+
+**Benefits of editable mode (`-e`):**
+- Python code changes take effect immediately (no reinstall needed)
+- Package stays linked to your local repository
+- Perfect for development workflow
+
+**Verify installation:**
+```bash
+python -c "import mcnptoolspro; print('✓ Installation successful')"
+```
+
+**If you modify C++ code:**
+```bash
+# Rebuild the extension
+cmake --build build --target _mcnptools_wrap -j $(nproc)  # Linux/macOS
+cmake --build build --target _mcnptools_wrap --config Release  # Windows
+
+# No need to run pip install again - the .so/.pyd is already linked
+```
+
+---
+
+**⚠️ Why not use `pip install .` (without `-e`)?**
+
+The non-editable `pip install .` is **not recommended** from a cloned repository because:
+- pip copies files to a temporary directory (`/tmp`) during build
+- This can cause CMakeLists.txt context issues
+- You lose the ability to make changes without reinstalling
+
+**Bottom line:** Always use `pip install -e .` for local development, or use the Quick Install method for production.
 
 ---
 
@@ -110,27 +161,37 @@ rm -f build/CMakeCache.txt
 
 ### Linux / macOS
 
-**Prerequisite**: Install HDF5 using your system package manager:
+**Prerequisites**: Ensure you have the required tools and libraries:
 
 ```bash
-# Ubuntu/Debian
-sudo apt-get install libhdf5-dev
+# Ubuntu/Debian - Install build tools and dependencies
+sudo apt update
+sudo apt install build-essential git python3-dev libhdf5-dev
+
+# Check versions (upgrade if needed)
+python3 --version  # Must be >= 3.7
+cmake --version    # Must be >= 3.13
+
+# If CMake is too old, upgrade via pip
+pip3 install --upgrade cmake
 
 # Fedora/RedHat
-sudo yum install hdf5-devel
+sudo yum install gcc-c++ git python3-devel hdf5-devel cmake
 
 # Arch Linux
-sudo pacman -S hdf5
+sudo pacman -S base-devel git python hdf5 cmake
 
 # macOS (Homebrew)
-brew install hdf5
+brew install hdf5 cmake python
 ```
 
 Then build mcnptoolspro:
 
 ```bash
-# 1. Configure CMake
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+# From the mcnptoolspro root directory
+
+# 1. Configure CMake (skip tests to avoid gtest dependency issues)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 
 # 2. Build the Python wrapper
 cmake --build build --target _mcnptools_wrap -j $(nproc)
@@ -141,9 +202,27 @@ cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
 # 4. Install the Python package
 cd python
 pip install -e .
+
+# 5. Verify installation
+python -c "import mcnptoolspro; print('✓ Installation successful')"
 ```
 
-**Note**: Unlike Windows, HDF5 is **not bundled** on Linux/macOS. You must install it via your package manager (it's fast and standard practice for C++ projects).
+**Notes**:
+- ✅ Unlike Windows, HDF5 is **not bundled** on Linux/macOS. Install via package manager (see Prerequisites above)
+- ✅ `-DBUILD_TESTING=OFF` prevents building unnecessary test suites
+- ✅ The compiled `.so` file is ~1.9 MB
+- ✅ Use `$(nproc)` to automatically use all available CPU cores for faster compilation
+
+**If you modify C++ code later:**
+```bash
+# Rebuild just the wrapper
+cmake --build build --target _mcnptools_wrap -j $(nproc)
+
+# Copy updated wrapper
+cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
+
+# No need to reinstall - editable mode picks up changes automatically
+```
 
 ---
 
@@ -154,8 +233,10 @@ pip install -e .
 | Platform | Requirements |
 |----------|-------------|
 | **Windows** | Visual Studio 2017+ (MSVC), CMake 3.13+, Python 3.7+ *(HDF5 bundled!)* |
-| **Linux** | GCC 7+, CMake 3.13+, Python 3.7+, libhdf5-dev |
-| **macOS** | Xcode Command Line Tools, CMake 3.13+, Python 3.7+ |
+| **Linux** | GCC 7+, CMake 3.13+, Python 3.7+, libhdf5-dev, build-essential, git |
+| **macOS** | Xcode Command Line Tools, CMake 3.13+, Python 3.7+, HDF5 (via Homebrew) |
+
+**Important**: These are **minimum versions**. If your system packages are older (e.g., Ubuntu 16.04/18.04 with old CMake), you must upgrade before installation.
 
 ### Python Dependencies
 
@@ -239,47 +320,74 @@ docker run -it --rm myapp
 
 ## 🔄 Update mcnptoolspro
 
-### If installed from GitHub
+### If installed via Quick Install (from GitHub)
 
 ```bash
 pip install --upgrade git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
 ```
 
-### If installed from source (editable)
+This will:
+- ✅ Fetch latest code from GitHub
+- ✅ Rebuild the C++ extension automatically
+- ✅ Update the Python package
+
+### If installed from source (editable mode)
 
 ```bash
+# Update source code
 cd mcnptoolspro
 git pull origin main
 
-# Rebuild if C++ code changed
-cmake --build build --config Release --target _mcnptools_wrap
-cp build/python/mcnptoolspro/Release/_mcnptools_wrap.pyd python/mcnptoolspro/  # Windows
+# If C++ code was updated, rebuild the extension
+cmake --build build --target _mcnptools_wrap -j $(nproc)  # Linux/macOS
 # OR
-cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/  # Linux/macOS
+cmake --build build --config Release --target _mcnptools_wrap  # Windows
+
+# Copy updated wrapper (Linux/macOS)
+cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
+
+# Copy updated wrapper (Windows)
+# Copy-Item build\python\mcnptoolspro\Release\_mcnptools_wrap.pyd python\mcnptoolspro\
+
+# No need to reinstall - editable mode picks up changes automatically
 ```
+
+**Note:** Python code changes are immediately active in editable mode. Only C++ changes require rebuilding.
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Issue: `CMake not found`
+### Issue: `CMake not found` or `CMake version too old`
 
-**Solution**: Install CMake
+**Symptoms**:
+- `CMake 3.13 or higher is required` error
+- `cmake: command not found`
+
+**Solution**: Install or upgrade CMake
 
 ```bash
-# Windows (via Chocolatey)
-choco install cmake
+# Check current version
+cmake --version
 
-# Linux
+# Ubuntu/Debian - If system package is too old, use pip
+pip3 install --upgrade cmake
+
+# Verify installation
+cmake --version  # Should show >= 3.13
+
+# Alternative: Install from system repos (may be outdated)
 sudo apt-get install cmake  # Debian/Ubuntu
 sudo yum install cmake       # RedHat/CentOS
 
 # macOS
 brew install cmake
 
-# OR via pip
-pip install cmake
+# Windows (via Chocolatey)
+choco install cmake
 ```
+
+**Ubuntu users**: System CMake (`apt install cmake`) may be version 3.10 or older on Ubuntu 18.04. Use `pip3 install cmake` for latest version.
 
 ---
 

@@ -25,6 +25,11 @@ def main():
 
     if not test_file.exists():
         print(f"ERROR: Test file not found: {test_file}")
+        print()
+        print("HINT: Run this demo from the mcnptoolspro root directory:")
+        print(f"  python examples/{Path(__file__).name}")
+        print()
+        print("You are currently in:", Path.cwd())
         return 1
 
     print(f"Reading PTRAC file: {test_file.name}")
