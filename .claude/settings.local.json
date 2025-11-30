@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(cmake:*)",
+      "Bash(powershell -Command:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,79 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install CMake
+      run: |
+        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+
+    - name: Configure CMake
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "Visual Studio 17 2022"
+
+    - name: Build
+      run: |
+        cmake --build build --config Release --target _mcnptools_wrap -j 4
+
+    - name: Copy wrapper
+      run: |
+        Copy-Item build\python\mcnptoolspro\Release\_mcnptools_wrap.pyd python\mcnptoolspro\
+
+    - name: Test import
+      run: |
+        cd python
+        python -c "import sys; sys.path.insert(0, '.'); import mcnptoolspro; print('Import OK')"
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake g++ libhdf5-dev
+
+    - name: Configure CMake
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: |
+        cmake --build build --target _mcnptools_wrap -j $(nproc)
+
+    - name: Copy wrapper
+      run: |
+        cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
+
+    - name: Test import
+      run: |
+        cd python
+        python -c "import sys; sys.path.insert(0, '.'); import mcnptoolspro; print('Import OK')"
