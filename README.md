@@ -24,27 +24,22 @@ The original mcnptools library has incomplete support for PTRAC files generated 
 
 ## Installation
 
-### Quick install from GitHub
+### Quick Install (All Platforms)
 
 ```bash
 pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
 ```
 
-### Install from source
+That's it! This works on Windows, Linux, and macOS.
 
-```bash
-git clone https://github.com/quentinducasse/mcnptoolspro.git
-cd mcnptoolspro/python
-pip install .
-```
-
-**For detailed installation instructions**, see **[INSTALL.md](INSTALL.md)**.
+**For detailed platform-specific installation instructions (editable mode, manual build, troubleshooting), see [INSTALL.md](INSTALL.md).**
 
 ### Requirements
 
 - Python 3.7+
 - CMake 3.13+
-- C++ compiler (MSVC on Windows, GCC/Clang on Linux/macOS)
+- C++ compiler (Visual Studio on Windows, GCC/Clang on Linux/macOS)
+- HDF5 (bundled on Windows, install via package manager on Linux/macOS)
 
 ---
 
@@ -53,17 +48,22 @@ pip install .
 ```python
 import mcnptoolspro as m
 
-# Read ASCII PTRAC file (filtered or not)
+# Read ASCII PTRAC file
 ptrac = m.Ptrac('output.ptrac', m.Ptrac.ASC_PTRAC)
 
-# Read particle histories
-histories = ptrac.ReadHistories(100)
+# Read first 10 histories
+histories = ptrac.ReadHistories(10)
 
 # Process events
-for hist in histories:
-    for event in hist.GetEvents():
-        print(f"Energy: {event.GetERG()} MeV")
-        print(f"Position: ({event.GetX()}, {event.GetY()}, {event.GetZ()})")
+for i, hist in enumerate(histories):
+    num_events = hist.GetNumEvents()
+    print(f"History {i+1}: {num_events} events")
+
+    # Access first event
+    event = hist.GetEvent(0)
+    if event.Has(26):  # Energy field
+        energy = event.Get(26)
+        print(f"  First event energy: {energy:.6f} MeV")
 ```
 
 **The API is identical to mcnptools** - just replace `import mcnptools` with `import mcnptoolspro`.
