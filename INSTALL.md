@@ -149,18 +149,14 @@ Install required tools and libraries:
 ```bash
 # Install build tools and dependencies
 sudo apt update
-sudo apt install build-essential git python3-dev libhdf5-dev
+sudo apt install build-essential git python3-dev libhdf5-dev cmake
 
-# Check versions (IMPORTANT!)
+# Verify versions
 python3 --version  # Must be >= 3.7
-cmake --version    # Must be >= 3.13
-
-# If CMake is too old (common on Ubuntu 18.04/20.04):
-pip3 install --upgrade cmake
-
-# Verify CMake version
-cmake --version  # Should now show >= 3.13
+cmake --version    # Must be >= 3.21
 ```
+
+**Note**: If `cmake --version` shows < 3.21 (e.g., Ubuntu 20.04 has 3.16), see [CMake too old](#issue-cmake-not-found-or-version-too-old) in Troubleshooting.
 
 #### Fedora/RedHat
 
@@ -258,9 +254,9 @@ cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
 
 | Platform | Requirements |
 |----------|-------------|
-| **Windows** | Visual Studio 2017+ (MSVC), CMake 3.13+, Python 3.7+, Git<br/>**HDF5**: ✅ Bundled (no installation needed) |
-| **Linux** | GCC 7+, CMake 3.13+, Python 3.7+, libhdf5-dev, build-essential, git<br/>**HDF5**: ⚙️ Install via package manager |
-| **macOS** | Xcode Command Line Tools, CMake 3.13+, Python 3.7+, Git<br/>**HDF5**: ⚙️ Install via Homebrew |
+| **Windows** | Visual Studio 2017+ (MSVC), CMake 3.21+, Python 3.7+, Git<br/>**HDF5**: ✅ Bundled (no installation needed) |
+| **Linux** | GCC 7+, CMake 3.21+, Python 3.7+, libhdf5-dev, build-essential, git<br/>**HDF5**: ⚙️ Install via package manager |
+| **macOS** | Xcode Command Line Tools, CMake 3.21+, Python 3.7+, Git<br/>**HDF5**: ⚙️ Install via Homebrew |
 
 **Python Dependencies**: None! mcnptoolspro is a pure C++ wrapper with no Python dependencies.
 
@@ -297,23 +293,36 @@ Choose "Desktop development with C++" workload.
 #### Issue: `CMake not found` or version too old
 
 **Symptoms**:
-- `CMake 3.13 or higher is required` error
+- `CMake 3.21 or higher is required. You are running version 3.16.3`
 - `cmake: command not found`
+- `ModuleNotFoundError: No module named 'cmake'` when running cmake
 
 **Solution**:
 
 ```bash
-# Check current version
-cmake --version
+# 1. If you have cmake installed via pip, uninstall it (it's broken)
+pip3 uninstall cmake -y
 
-# Ubuntu/Debian - If system package is too old:
-pip3 install --upgrade cmake
+# 2. Install CMake 3.21+
+# For Ubuntu 20.04 (easiest method):
+sudo snap install cmake --classic
+export PATH=/snap/bin:$PATH
 
 # Verify
-cmake --version  # Should show >= 3.13
+cmake --version  # Should show >= 3.21
+which cmake      # Should show /snap/bin/cmake
 ```
 
-**Ubuntu users**: System CMake may be version 3.10 on Ubuntu 18.04/20.04. Always use `pip3 install cmake` for the latest version.
+**Alternative methods for CMake 3.21+**:
+- **Ubuntu 22.04+**: `sudo apt install cmake` (already >= 3.21)
+- **Kitware official repo** (Ubuntu 20.04):
+  ```bash
+  wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+  sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
+  sudo apt update && sudo apt install cmake
+  ```
+
+**IMPORTANT**: NEVER use `pip install cmake` - it creates a broken Python wrapper that conflicts with build tools.
 
 #### Issue: `libhdf5 not found`
 
