@@ -1,5 +1,6 @@
 #include <cassert>
 #include <string>
+#include <sstream>
 
 #include "mcnptools/Ptrac.hpp"
 
@@ -184,10 +185,15 @@ void Ptrac::ReadHeader() {
     }
 
     // MCNPTOOLSPRO: Detect filtered PTRAC files (binary format)
+    // DISABLED: This heuristic detection is too aggressive and causes false positives
+    // on regular binary PTRAC files (e.g., when nter1 is a small number like 0 or 1).
+    // TODO: Implement more robust detection or require explicit format specification
+    // For now, binary filter support is disabled to prevent breaking regular files.
+    //
     // Filtered PTRAC files have an extra record of filter parameters before the data types
     // We detect this by checking specific header values that change with filters
     // For filtered files, we need to skip this extra record
-    bool is_filtered_bin = (nbnk2 > 0) || (nter1 < 100) || (unused[2] > 0);
+    bool is_filtered_bin = false; // DISABLED: (nbnk2 > 0) || (nter1 < 100) || (unused[2] > 0);
 
     if(is_filtered_bin) {
       // Skip the extra filter parameters record
@@ -267,21 +273,18 @@ void Ptrac::ReadHeader() {
     double tmp;
     m_handle >> tmp;
     nkw = (unsigned int) tmp;
+
     for(unsigned int i=1; i<10; i++) {
       m_handle >> tmp;
       kwent.push_back(tmp);
     }
 
-    std::cerr << "[DEBUG] Read line 5, nkw=" << nkw << std::endl;
-
     // If nkw >= 3, read line 6 (second kwent line) for filter_all
     if(nkw >= 3) {
-      std::cerr << "[DEBUG] nkw >= 3, reading line 6..." << std::endl;
       for(unsigned int i=0; i<10; i++) {
         m_handle >> tmp;
         kwent.push_back(tmp);
       }
-      std::cerr << "[DEBUG] Read line 6, kwent.size()=" << kwent.size() << std::endl;
     }
 
     // MCNPTOOLEXPERT: Detect filter types from LINE 4
@@ -298,57 +301,58 @@ void Ptrac::ReadHeader() {
     bool has_event_filter = (line4_values.size() > 4 && line4_values[4] > 0.0);
     bool has_filter_keyword = (line4_values.size() > 7 && line4_values[7] > 0.0);
 
-    // Check line 5 (kwent[0-9]) for type/tally filter
-    // Also check line 6 (kwent[10-19]) for filter_all tally info
+    // Check line 5 (kwent[0-8]) for type/tally filter
+    // Also check line 6 (kwent[9-18]) for filter_all tally info
+    // tally: kwent[2] > 0 and kwent[3] < 0 (e.g. 1.0, -2.0)
+    // type: kwent[3] > 0 and kwent[4] > 0 (e.g. 2.0, 9.0)
     bool has_type_filter = false;
     bool has_tally_filter = false;
     if(kwent.size() >= 5) {
-      bool kw3_positive = (kwent[3] > 0.0);
-      bool kw4_positive = (kwent[4] > 0.0);
-      bool kw4_negative = (kwent[4] < 0.0);
+      // Tally detection: kwent[2] positive, kwent[3] negative
+      has_tally_filter = (kwent[2] > 0.0 && kwent[3] < 0.0);
 
-      has_type_filter = kw3_positive && kw4_positive;
-      has_tally_filter = kw3_positive && kw4_negative;
+      // Type detection: kwent[3] positive, kwent[4] positive
+      has_type_filter = (kwent[3] > 0.0 && kwent[4] > 0.0);
     }
 
-    // MCNPTOOLEXPERT: Check line 6 (kwent[10-19]) for filter_all tally
-    // filter_all has line 6 starting with negative value (tally indicator)
-    std::cerr << "[DEBUG] kwent.size()=" << kwent.size() << std::endl;
-    if(kwent.size() >= 10) {
-      std::cerr << "[DEBUG] kwent[9]=" << kwent[9] << std::endl;
-    }
-    if(kwent.size() >= 11 && kwent[9] < 0.0) {
-      std::cerr << "[DEBUG] Detected tally filter from kwent[9]" << std::endl;
+    // MCNPTOOLEXPERT: Check line 6 (kwent[9-18]) for filter_all tally
+    // filter_all has line 6 starting at kwent[9]
+    // tally marker: kwent[9] < 0 (e.g. -1.0 for tally)
+    if(kwent.size() >= 10 && kwent[9] < 0.0) {
       has_tally_filter = true;
     }
 
     has_filter = has_event_filter || has_filter_keyword || has_type_filter || has_tally_filter;
     has_tally = has_tally_filter;
-    std::cerr << "[DEBUG] has_filter=" << has_filter << ", has_tally=" << has_tally << std::endl;
+
+    // MCNPTOOLEXPERT: MCNP 6.3 tally-only format has an extra line of 10 floats
+    // This ONLY affects tally-only files (nkw < 3), NOT filter_all (nkw >= 3)
+    bool is_mcnp63 = (m_code == "mcnp6");
+
+    if(is_mcnp63 && has_tally_filter && nkw < 3) {
+      // Skip the extra line of 10 floats in MCNP 6.3 tally-only files
+      double skip_val;
+      for(int i=0; i<10; i++) {
+        m_handle >> skip_val;
+      }
+    }
 
     // Skip filter parameter line (10 floats) for filters that need it
     // MCNPTOOLEXPERT: filter_all (nkw >= 3) has NO extra line to skip
     // because line 6 (tally info) is already read into kwent
     if(has_filter && has_tally) {
-      std::cerr << "[DEBUG] Branch: has_filter && has_tally (nkw=" << nkw << ")" << std::endl;
-      // tally-only (nkw < 3): no skip needed, tally data is on NPS line
+      // tally-only (nkw < 3): no skip needed for MCNP 6.2 (already handled above for 6.3)
       // filter_all (nkw >= 3): no skip needed, line 6 already in kwent
-      std::cerr << "[DEBUG] Skipping 0 lines (tally filter)" << std::endl;
     }
     else if(has_filter) {
-      std::cerr << "[DEBUG] Branch: has_filter (no tally) - skipping 1 line" << std::endl;
       // event=, type=, filter= without tally: skip 1 line
       double filter_param;
       for(int i=0; i<10; i++) {
         m_handle >> filter_param;
       }
     }
-    else {
-      std::cerr << "[DEBUG] Branch: no filter detected" << std::endl;
-    }
 
     // read number data
-    std::cerr << "[DEBUG] Reading number data..." << std::endl;
     int nnps, ipt, single_double, unused[7];
     int64_t nsrc1, nsrc2, nbnk1, nbnk2, nsur1, nsur2, ncol1, ncol2, nter1, nter2;
 
@@ -356,8 +360,6 @@ void Ptrac::ReadHeader() {
     for(unsigned int i=0; i<7; i++) {
       m_handle >> unused[i];
     }
-
-    std::cerr << "[DEBUG] Number data read: nnps=" << nnps << std::endl;
 
     m_nument.insert( std::pair<std::string, int64_t>( "nps", nnps ) );
     m_nument.insert( std::pair<std::string, int64_t>( "src1", nsrc1 ) );
@@ -372,10 +374,7 @@ void Ptrac::ReadHeader() {
     m_nument.insert( std::pair<std::string, int64_t>( "ter2", nter2 ) );
 
     // read data types
-    std::cerr << "[DEBUG] Reading data types for " << m_lines.size() << " lines..." << std::endl;
-
     for(unsigned int i=0; i<m_lines.size(); i++) {
-      std::cerr << "[DEBUG] Reading line " << m_lines[i] << " (" << m_nument[m_lines[i]] << " entries)" << std::endl;
       for(unsigned int j=0; j<m_nument[ m_lines[i] ]; j++) {
         if( m_lines[i] == "nps" ) {
           int64_t tmp;
@@ -389,7 +388,6 @@ void Ptrac::ReadHeader() {
         }
       }
     }
-    std::cerr << "[DEBUG] Data types read successfully" << std::endl;
 
     // MCNPTOOLEXPERT: Add tally data types if tally filter detected
     // For tally= or filter= with tally, NPS line has: NPS, EVENT_TYPE, TALLY(5), VALUE(6)

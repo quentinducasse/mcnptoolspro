@@ -233,3 +233,41 @@ After running the demos:
 ---
 
 **Enjoy exploring mcnptoolspro!** 🚀
+
+---
+
+## Testing Scripts
+
+### Comprehensive PTRAC Test Suite
+
+```bash
+# Test all PTRAC files in tests/test_data/
+python examples/test_all_ptrac_files.py
+```
+
+**Features:**
+- Tests ASCII, Binary, and HDF5 formats
+- Auto-detects file format
+- 5-second timeout per file (prevents hangs)
+- Comprehensive statistics
+
+**Expected output:**
+```
+Found 49 potential PTRAC files
+[1/49] Testing: file1.ptrac [OK] 0.06s
+...
+SUCCESS: 49/49 files (100%)
+  ASCII:  40/40 (100%)
+  BINARY:  8/8  (100%)
+  HDF5:    1/1  (100%)
+```
+
+### Debug Binary PTRAC
+
+```bash
+# Analyze binary PTRAC file structure
+python examples/debug_binary_ptrac.py tests/test_data/file.ptrac
+```
+
+Shows low-level binary header structure for debugging.
+

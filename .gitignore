@@ -154,6 +154,27 @@ doc/_build/
 docs/_build/
 
 # ==========================================
+# Private test data (not for public repo)
+# ==========================================
+# Keep only test_data_github/ for public, ignore personal test_data/
+tests/test_data/
+!tests/test_data_github/
+
+# Ignore anisotropy analysis files (personal research)
+tests/README_AMBE_ANISOTROPY.md
+tests/SP4_with_sin_jacobian.txt
+tests/ambe_complete_analysis.png
+tests/analyze_ambe_complete.py
+tests/compare_mcnp62_vs_63.py
+tests/generate_SP4_with_sin_jacobian.py
+tests/test_all_versions.py
+tests/test_mcnp63.py
+
+# Null device errors
+nul
+tests/nul
+
+# ==========================================
 # Keep these (important!)
 # ==========================================
 # Don't ignore these essential files:
