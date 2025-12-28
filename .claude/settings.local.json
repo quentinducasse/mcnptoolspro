@@ -5,7 +5,16 @@
       "Bash(pip install:*)",
       "Bash(python:*)",
       "Bash(cmake:*)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(git pull:*)",
+      "Bash(timeout 10 python:*)",
+      "Bash(timeout 5 python:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 60 python:*)",
+      "Bash(time python:*)",
+      "Bash(timeout 3 python:*)",
+      "Bash(ls:*)",
+      "Bash(timeout 15 python:*)"
     ],
     "deny": [],
     "ask": []
