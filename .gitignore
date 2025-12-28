@@ -157,6 +157,14 @@ docs/_build/
 .claude/
 
 # ==========================================
+# Boost library exceptions (DO NOT IGNORE)
+# ==========================================
+# These Boost directories contain source files needed for compilation
+!boost/**/debug/
+!boost/**/build/
+!boost/**/x86/
+
+# ==========================================
 # Private test data (not for public repo)
 # ==========================================
 # Keep only test_data_github/ for public, ignore personal test_data/
