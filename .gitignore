@@ -153,6 +153,9 @@ temp/
 doc/_build/
 docs/_build/
 
+# Claude Code settings (local only)
+.claude/
+
 # ==========================================
 # Private test data (not for public repo)
 # ==========================================

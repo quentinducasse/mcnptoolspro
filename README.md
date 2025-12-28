@@ -134,7 +134,7 @@ This complex filter combination (tally + filter + event + type) is fully support
 
 ### Technical Details
 
-For in-depth technical explanations of the C++ code modifications, see **[TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md)**.
+For in-depth technical explanations of the C++ code modifications, see **[TECHNICAL_DETAILS.md](doc/TECHNICAL_DETAILS.md)**.
 
 ---
 
@@ -251,9 +251,11 @@ All tests passed (6/6 filters)
 
 ## Documentation
 
-- [INSTALL.md](INSTALL.md) - Installation guide
-- [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) - C++ modifications explained
-- [TODO.md](TODO.md) - Future improvements and testing
+- [INSTALL.md](INSTALL.md) - Installation guide for all platforms
+- [CHANGELOG.md](doc/CHANGELOG.md) - Version history and changes
+- [TECHNICAL_DETAILS.md](doc/TECHNICAL_DETAILS.md) - C++ code modifications explained
+- [tests/README.md](tests/README.md) - Test suite documentation
+- [examples/README.md](examples/README.md) - Interactive demos and usage examples
 
 ---
 

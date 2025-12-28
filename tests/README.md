@@ -23,18 +23,30 @@ This directory contains tests for mcnptoolspro.
 
 ## Test Data
 
-### `test_data/` Directory
+### `test_data_github/` Directory
 
-Contains 6 sample PTRAC files (ASCII format, MCNP 6.2):
+Contains 18 comprehensive test files for public distribution:
 
-| File | Description | Events |
-|------|-------------|--------|
-| `ptrac_filter_none.ip` | No filter (baseline) | 63 |
-| `ptrac_filter_event.ip` | Event filter (src, bnk, ter) | 9 |
-| `ptrac_filter_type.ip` | Type filter (n, h, t) | 13 |
-| `ptrac_filter_filter.ip` | Surface filter | 15 |
-| `ptrac_filter_tally.ip` | Tally filter | 319 |
-| `ptrac_filter_all.ip` | Combined filters | 2 |
+**ASCII Files (13 files):**
+- MCNP 6.2 filters: `ptrac_filter_*.ip` (all, event, filter, none, tally, type)
+- MCNP 6.3 filters: `ptrac63_filter_*.ip` (all, event, filter, none, tally, type)
+- Large example: `basic_ptrac_example_ASC.ptrac` (20 MB, production simulation)
+
+**Binary Files (4 files):**
+- `example_ptrac_1_BIN.ptrac` - Basic binary format
+- `example_ptrac_2_BIN.ptrac` - Binary variant
+- `LB6411_cezane_SC_75_BIN.ip` - Production simulation
+- `LB6411_cezane_event_BIN.ptrac` - Event filtering in binary
+
+**HDF5 Files (1 file):**
+- `example_ptrac_3_HDF5.h5` - Modern HDF5 format
+
+See [test_data_github/README.md](test_data_github/README.md) for complete documentation.
+
+### Legacy `test_data/` Directory
+
+Contains additional test files used during development (6 baseline + 43 extended files).
+This directory is excluded from version control (.gitignore) and reserved for local testing.
 
 ---
 
@@ -102,10 +114,34 @@ All tests passed (5/5)
 
 ---
 
-## Known Issues
+## Comprehensive Testing
 
-- Tests currently validate ASCII format only
-- Binary and HDF5 formats not yet tested
-- MCNP 6.3 compatibility not verified
+### Automated Test Suite
 
-See [../TODO.md](../TODO.md) for planned testing improvements.
+Run the comprehensive test suite on all 18 test files:
+
+```bash
+cd mcnptoolspro/examples
+python test_all_ptrac_files.py
+```
+
+Expected output:
+```
+[STATS] OVERALL:
+  Total files: 18
+  SUCCESS: 18
+
+[FILE] BY FORMAT:
+  ASCII           | Total: 13 | OK: 13 | Failed:  0 | Timeout:  0
+  BINARY          | Total:  4 | OK:  4 | Failed:  0 | Timeout:  0
+  HDF5            | Total:  1 | OK:  1 | Failed:  0 | Timeout:  0
+```
+
+This validates:
+- ✅ All three formats (ASCII, Binary, HDF5)
+- ✅ All MCNP filter types (none, event, type, filter, tally, all)
+- ✅ Both MCNP 6.2 and 6.3 compatibility
+- ✅ Automatic format detection
+- ✅ Performance (< 0.2s per file)
+
+See [../TODO.md](../TODO.md) for future testing improvements.

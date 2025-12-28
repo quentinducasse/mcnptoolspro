@@ -184,7 +184,7 @@ KEY INSIGHT:
 ## Requirements
 
 - mcnptoolspro installed (or in PYTHONPATH)
-- Test data files in `../tests/test_data/`
+- Test data files in `tests/test_data_github/`
 
 ---
 
@@ -227,7 +227,7 @@ After running the demos:
    ```
 
 3. **Read the technical details**:
-   - [TECHNICAL_DETAILS.md](../TECHNICAL_DETAILS.md)
+   - [TECHNICAL_DETAILS.md](../doc/TECHNICAL_DETAILS.md)
    - [README.md](../README.md)
 
 ---
@@ -241,33 +241,58 @@ After running the demos:
 ### Comprehensive PTRAC Test Suite
 
 ```bash
-# Test all PTRAC files in tests/test_data/
+# Test all PTRAC files in tests/test_data_github/
 python examples/test_all_ptrac_files.py
 ```
 
 **Features:**
 - Tests ASCII, Binary, and HDF5 formats
-- Auto-detects file format
+- Auto-detects file format using `tools/sandbox.py`
 - 5-second timeout per file (prevents hangs)
-- Comprehensive statistics
+- Comprehensive statistics by format
 
 **Expected output:**
 ```
-Found 49 potential PTRAC files
-[1/49] Testing: file1.ptrac [OK] 0.06s
+Found 18 potential PTRAC files
+[1/18] Testing: ptrac_filter_all_ASC.ip        [OK] 0.06s
+[2/18] Testing: example_ptrac_1_BIN.ptrac      [OK] 0.07s
 ...
-SUCCESS: 49/49 files (100%)
-  ASCII:  40/40 (100%)
-  BINARY:  8/8  (100%)
-  HDF5:    1/1  (100%)
+[STATS] OVERALL:
+  Total files: 18
+  SUCCESS: 18
+
+[FILE] BY FORMAT:
+  ASCII           | Total: 13 | OK: 13 | Failed:  0 | Timeout:  0
+  BINARY          | Total:  4 | OK:  4 | Failed:  0 | Timeout:  0
+  HDF5            | Total:  1 | OK:  1 | Failed:  0 | Timeout:  0
 ```
 
-### Debug Binary PTRAC
+**What it tests:**
+- ✅ All 3 formats (ASCII, Binary, HDF5)
+- ✅ All MCNP filter types (none, event, type, filter, tally, all)
+- ✅ MCNP 6.2 and 6.3 compatibility
+- ✅ Automatic format detection
+- ✅ Performance (< 0.2s per file)
 
-```bash
-# Analyze binary PTRAC file structure
-python examples/debug_binary_ptrac.py tests/test_data/file.ptrac
+### Format Detection Utility
+
+The `tools/sandbox.py` module provides robust 3-level format detection:
+
+```python
+from tools.sandbox import detect_ptrac_mode
+import mcnptoolspro as m
+
+# Auto-detect format
+filepath = 'tests/test_data_github/example_ptrac_1_BIN.ptrac'
+mode = detect_ptrac_mode(filepath)  # Returns 'BIN_PTRAC'
+
+# Use detected mode
+ptrac = m.Ptrac(filepath, getattr(m.Ptrac, mode))
+histories = ptrac.ReadHistories(5)
 ```
 
-Shows low-level binary header structure for debugging.
+**Detection strategy:**
+1. **HDF5**: Check file extension (.h5/.hdf5) and magic bytes
+2. **Binary**: Check FORTRAN record markers (size1 == size2)
+3. **ASCII**: Check printable character ratio + keywords
 
