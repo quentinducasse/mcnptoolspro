@@ -36,21 +36,26 @@ This enhanced version fixes these critical gaps while maintaining 100% API compa
 
 ## Installation
 
-### Quick Install (All Platforms)
+### Recommended Method
 
 ```bash
-pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
+# 1. Clone the repository
+git clone https://github.com/quentinducasse/mcnptoolspro.git
+cd mcnptoolspro
+
+# 2. Install in editable mode
+cd python
+pip install -e .
 ```
 
-That's it! This works on Windows, Linux, and macOS.
-
-**For detailed platform-specific installation instructions (editable mode, manual build, troubleshooting), see [INSTALL.md](INSTALL.md).**
+**For detailed installation instructions, troubleshooting, and alternative methods, see [INSTALL.md](INSTALL.md).**
 
 ### Requirements
 
 - Python 3.7+
 - CMake 3.13+
 - C++ compiler (Visual Studio on Windows, GCC/Clang on Linux/macOS)
+- Git
 - HDF5 (bundled on Windows, install via package manager on Linux/macOS)
 
 ---
