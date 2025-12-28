@@ -80,7 +80,7 @@ _deps/
 Debug/
 Release/
 x64/
-x86/
+/x86/
 ipch/
 *.aps
 *.ncb
