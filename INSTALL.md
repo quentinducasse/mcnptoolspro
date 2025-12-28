@@ -6,37 +6,10 @@
 
 ## 📑 Table of Contents
 
-- [Quick Install (All Platforms)](#-quick-install-all-platforms)
 - [Windows Installation](#-windows-installation)
 - [Linux/macOS Installation](#-linuxmacos-installation)
 - [Troubleshooting](#-troubleshooting)
 - [Testing](#-test-installation)
-
----
-
-## 📦 Quick Install (All Platforms)
-
-The easiest way to install mcnptoolspro on any platform:
-
-```bash
-pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
-```
-
-**Note**: The `#subdirectory=python` part is required because `setup.py` is located in the `python/` directory.
-
-**That's it!** You can now use:
-
-```python
-import mcnptoolspro as m
-ptrac = m.Ptrac('file.ptrac', m.Ptrac.ASC_PTRAC)
-```
-
-**This method:**
-- ✅ Works on Windows, Linux, and macOS
-- ✅ Automatically detects your platform and configures the build
-- ✅ Compiles the C++ extension with CMake
-- ✅ Installs all dependencies (HDF5 bundled on Windows)
-- ✅ No manual steps required
 
 ---
 
@@ -389,8 +362,9 @@ Then retry the installation.
 # Check installation
 pip list | grep mcnptools
 
-# If not listed, reinstall
-pip install git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
+# If not listed, reinstall (see platform-specific instructions above)
+cd mcnptoolspro/python
+pip install -e .
 ```
 
 ---
@@ -427,21 +401,12 @@ for i, hist in enumerate(histories):
 
 | Method | Platform | Use Case | Command |
 |--------|----------|----------|---------|
-| **Quick Install** | All | Production use | `pip install git+https://github.com/...` |
-| **Editable Install** | All | Development | `git clone ... && cd python && pip install -e .` |
+| **Editable Install** | All | Recommended | `git clone ... && cd python && pip install -e .` |
 | **Manual Build** | All | Expert control | `cmake ... && cmake --build ... && pip install -e .` |
 
 ---
 
 ## 🔄 Update mcnptoolspro
-
-### If installed via Quick Install
-
-```bash
-pip install --upgrade git+https://github.com/quentinducasse/mcnptoolspro.git#subdirectory=python
-```
-
-### If installed in editable mode
 
 See platform-specific update instructions in [Windows Installation](#updating-windows) or [Linux/macOS Installation](#updating-linuxmacos).
 
