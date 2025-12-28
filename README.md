@@ -43,12 +43,17 @@ This enhanced version fixes these critical gaps while maintaining 100% API compa
 git clone https://github.com/quentinducasse/mcnptoolspro.git
 cd mcnptoolspro
 
-# 2. Install in editable mode
-cd python
-pip install -e .
+# 2. Run the automated installation script
+python install_dev.py
 ```
 
-**For detailed installation instructions, troubleshooting, and alternative methods, see [INSTALL.md](INSTALL.md).**
+The script automatically handles:
+- Prerequisites checking (Python, CMake, Git, compiler)
+- C++ wrapper compilation with CMake
+- Python package installation in editable mode
+- Installation verification
+
+**For detailed instructions, manual installation, and troubleshooting, see [INSTALL.md](INSTALL.md).**
 
 ### Requirements
 

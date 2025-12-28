@@ -38,76 +38,40 @@ Install these tools **before** building mcnptoolspro:
 
 **Note**: `hdf5.dll` is **already bundled** in the repository. No need to install HDF5 separately on Windows!
 
-### Method 1: Editable Install (Recommended for Development)
-
-Best for developers who want to modify the code:
+### Installation Steps
 
 ```powershell
 # 1. Clone the repository
 git clone https://github.com/quentinducasse/mcnptoolspro.git
 cd mcnptoolspro
 
-# 2. Install in editable mode
-cd python
-pip install -e .
+# 2. Run the automated installation script
+python install_dev.py
 ```
 
-**What happens:**
-- CMake configures automatically
-- C++ extension compiles with Visual Studio
-- Package installs in editable mode (changes to Python code take effect immediately)
+**What the script does:**
+- ✓ Checks all prerequisites (Python, CMake, Git, Visual Studio)
+- ✓ Configures CMake with Visual Studio generator
+- ✓ Builds the C++ wrapper (`_mcnptools_wrap.pyd`)
+- ✓ Copies the compiled wrapper to the Python package
+- ✓ Installs the package in editable mode
+- ✓ Verifies the installation works
 
-**Verify:**
-```powershell
-python -c "import mcnptoolspro; print('Installation successful')"
-```
-
-### Method 2: Manual Build (Expert Mode)
-
-For maximum control over the build process:
-
-```batch
-# 1. Clone the repository
-git clone https://github.com/quentinducasse/mcnptoolspro.git
-cd mcnptoolspro
-
-# 2. Configure CMake
-cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
-
-# 3. Build the Python wrapper
-cmake --build build --config Release --target _mcnptools_wrap -j 8
-
-# 4. Copy the compiled wrapper (use 'copy' in CMD or 'Copy-Item' in PowerShell)
-copy build\python\mcnptoolspro\Release\_mcnptools_wrap.pyd python\mcnptoolspro\
-
-# 5. Install the Python package
-cd python
-pip install -e .
-
-# 6. Verify
-python -c "import mcnptoolspro; print('Installation successful')"
-```
-
-**Important**: If you get a CMake error about generator platform mismatch, remove the cache first located in \mcnptoolspro:
-```batch
-del build\CMakeCache.txt
-```
-Then retry from step 5.
+That's it! The script handles everything automatically.
 
 ### Updating (Windows)
 
-If you installed in editable mode:
+To update to the latest version:
 
 ```powershell
 cd mcnptoolspro
 git pull origin main
 
-# If C++ code was updated, rebuild:
-cmake --build build --config Release --target _mcnptools_wrap
-copy build\python\mcnptoolspro\Release\_mcnptools_wrap.pyd python\mcnptoolspro\
-
-# Python code changes are automatic (editable mode)
+# Re-run the installation script
+python install_dev.py
 ```
+
+**Note**: Python code changes are picked up automatically (editable mode), but C++ changes require rebuilding.
 
 ---
 
@@ -151,75 +115,40 @@ brew install hdf5 cmake python git
 
 **Note**: Unlike Windows, HDF5 is **not bundled** on Linux/macOS. You must install it via your package manager (standard practice for C++ projects).
 
-### Method 1: Editable Install (Recommended for Development)
-
-Best for developers who want to modify the code:
+### Installation Steps
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/quentinducasse/mcnptoolspro.git
 cd mcnptoolspro
 
-# 2. Install in editable mode
-cd python
-pip3 install -e .
+# 2. Run the automated installation script
+python3 install_dev.py
 ```
 
-**What happens:**
-- CMake configures automatically
-- C++ extension compiles with GCC/Clang
-- Package installs in editable mode (changes to Python code take effect immediately)
+**What the script does:**
+- ✓ Checks all prerequisites (Python, CMake, Git, GCC/Clang)
+- ✓ Configures CMake for your platform
+- ✓ Builds the C++ wrapper (`_mcnptools_wrap.so`)
+- ✓ Copies the compiled wrapper to the Python package
+- ✓ Installs the package in editable mode
+- ✓ Verifies the installation works
 
-**Verify:**
-```bash
-python3 -c "import mcnptoolspro; print('Installation successful')"
-```
-
-### Method 2: Manual Build (Expert Mode)
-
-For maximum control over the build process:
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/quentinducasse/mcnptoolspro.git
-cd mcnptoolspro
-
-# 2. Configure CMake (skip tests to avoid gtest dependency)
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
-
-# 3. Build the Python wrapper
-cmake --build build --target _mcnptools_wrap -j $(nproc)
-
-# 4. Copy the compiled wrapper
-cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
-
-# 5. Install the Python package
-cd python
-pip3 install -e .
-
-# 6. Verify
-python3 -c "import mcnptoolspro; print('Installation successful')"
-```
-
-**Notes:**
-- `-DBUILD_TESTING=OFF` prevents building unnecessary test suites
-- `$(nproc)` uses all CPU cores for faster compilation
-- The compiled `.so` file is ~1.9 MB
+That's it! The script handles everything automatically.
 
 ### Updating (Linux/macOS)
 
-If you installed in editable mode:
+To update to the latest version:
 
 ```bash
 cd mcnptoolspro
 git pull origin main
 
-# If C++ code was updated, rebuild:
-cmake --build build --target _mcnptools_wrap -j $(nproc)
-cp build/python/mcnptoolspro/_mcnptools_wrap.so python/mcnptoolspro/
-
-# Python code changes are automatic (editable mode)
+# Re-run the installation script
+python3 install_dev.py
 ```
+
+**Note**: Python code changes are picked up automatically (editable mode), but C++ changes require rebuilding.
 
 ---
 
