@@ -128,6 +128,17 @@ def configure_cmake(root_dir):
     build_dir = root_dir / 'build'
     system = platform.system()
 
+    # Clean CMake cache to avoid configuration conflicts
+    cmake_cache = build_dir / 'CMakeCache.txt'
+    if cmake_cache.exists():
+        print("  Cleaning existing CMake cache...")
+        try:
+            cmake_cache.unlink()
+            print(f"  [OK] Removed: {cmake_cache}")
+        except Exception as e:
+            print(f"  Warning: Could not remove cache: {e}")
+        print()
+
     # Build CMake command
     cmd = [
         'cmake',
@@ -207,16 +218,35 @@ def install_package(root_dir):
 
     python_dir = root_dir / 'python'
 
-    # First, ensure pip itself is up to date
-    print("  Ensuring pip is up to date...")
+    # Create .pth file for editable install instead of using pip install -e
+    # This avoids pip rebuilding with CMake and causing cache conflicts
+    print("  Creating editable installation...")
     print()
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'],
-                   capture_output=True)
 
-    # Install in editable mode
-    cmd = [sys.executable, '-m', 'pip', 'install', '--no-build-isolation', '-e', '.']
+    try:
+        # Find site-packages directory
+        import site
+        user_site = site.getusersitepackages()
 
-    return run_command(cmd, cwd=str(python_dir))
+        # Create site-packages if it doesn't exist
+        import os
+        os.makedirs(user_site, exist_ok=True)
+
+        # Create .pth file pointing to our package
+        pth_file = Path(user_site) / 'mcnptoolspro.pth'
+        with open(pth_file, 'w') as f:
+            f.write(str(python_dir) + '\n')
+
+        print(f"  [OK] Created: {pth_file}")
+        print(f"  [OK] Points to: {python_dir}")
+        print()
+
+        return True
+
+    except Exception as e:
+        print(f"  ERROR: Failed to create editable install: {e}")
+        print()
+        return False
 
 
 def verify_installation():
@@ -227,38 +257,61 @@ def verify_installation():
     print("=" * 76)
     print()
 
-    # Force reimport by clearing any cached imports
-    if 'mcnptoolspro' in sys.modules:
-        del sys.modules['mcnptoolspro']
-    if '_mcnptools_wrap' in sys.modules:
-        del sys.modules['_mcnptools_wrap']
+    # Run verification in a fresh Python process (required for .pth to be loaded)
+    verification_code = """
+import sys
+try:
+    import mcnptoolspro as m
+    print(f"  [OK] mcnptoolspro imported successfully")
+    print(f"  [OK] Location: {m.__file__}")
+    print()
+
+    # Check that Ptrac class is accessible
+    if hasattr(m.Ptrac, 'ASC_PTRAC'):
+        print("  [OK] Ptrac.ASC_PTRAC constant accessible")
+    if hasattr(m.Ptrac, 'BIN_PTRAC'):
+        print("  [OK] Ptrac.BIN_PTRAC constant accessible")
+    if hasattr(m.Ptrac, 'HDF5_PTRAC'):
+        print("  [OK] Ptrac.HDF5_PTRAC constant accessible")
+
+    sys.exit(0)
+except ImportError as e:
+    print(f"  [X] Import failed: {e}")
+    sys.exit(1)
+"""
 
     try:
-        import mcnptoolspro as m
-        print(f"  [OK] mcnptoolspro imported successfully")
-        print(f"  [OK] Location: {m.__file__}")
-        print()
+        result = subprocess.run(
+            [sys.executable, '-c', verification_code],
+            capture_output=True,
+            text=True
+        )
 
-        # Check that Ptrac class is accessible
-        if hasattr(m.Ptrac, 'ASC_PTRAC'):
-            print("  [OK] Ptrac.ASC_PTRAC constant accessible")
-        if hasattr(m.Ptrac, 'BIN_PTRAC'):
-            print("  [OK] Ptrac.BIN_PTRAC constant accessible")
-        if hasattr(m.Ptrac, 'HDF5_PTRAC'):
-            print("  [OK] Ptrac.HDF5_PTRAC constant accessible")
+        # Print output
+        if result.stdout:
+            print(result.stdout)
 
-        print()
-        print("=" * 76)
-        print("Installation successful!".center(76))
-        print("=" * 76)
-        print()
-        print("You can now use mcnptoolspro in your Python scripts.")
-        print()
+        if result.returncode == 0:
+            print()
+            print("=" * 76)
+            print("Installation successful!".center(76))
+            print("=" * 76)
+            print()
+            print("You can now use mcnptoolspro in your Python scripts.")
+            print()
+            return True
+        else:
+            if result.stderr:
+                print(result.stderr)
+            print()
+            print("=" * 76)
+            print("Installation verification failed".center(76))
+            print("=" * 76)
+            print()
+            return False
 
-        return True
-
-    except ImportError as e:
-        print(f"  [X] Import failed: {e}")
+    except Exception as e:
+        print(f"  [X] Verification error: {e}")
         print()
         print("=" * 76)
         print("Installation verification failed".center(76))
