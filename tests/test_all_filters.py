@@ -23,7 +23,7 @@ import mcnptoolspro as m
 def test_filter(filter_name, expected_events):
     """Test a single filter type"""
     # Path to test data
-    test_file = Path(__file__).parent / 'test_data' / f'ptrac_filter_{filter_name}.ip'
+    test_file = Path(__file__).parent / 'test_data_github' / f'ptrac_filter_{filter_name}_ASC.ip'
 
     if not test_file.exists():
         print(f"Testing filter: {filter_name:10} ... SKIP (file not found)")

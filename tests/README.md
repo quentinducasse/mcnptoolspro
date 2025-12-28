@@ -94,7 +94,7 @@ All tests passed (5/5)
 
 ### For new filter types
 
-1. Add test PTRAC file to `test_data/`
+1. Add test PTRAC file to `test_data_github/` (with format suffix: _ASC, _BIN, _HDF5)
 2. Add test case to `test_all_filters.py`
 3. Update expected event counts
 

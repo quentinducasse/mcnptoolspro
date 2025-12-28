@@ -7,16 +7,16 @@ of a PTRAC file, including position, direction, energy, weight, etc.
 Usage:
     python demo_detailed_event_info.py [ptrac_file]
 
-If no file is specified, uses ptrac_filter_none.ip by default.
+If no file is specified, uses ptrac_filter_none_ASC.ip by default.
 
 Examples:
-    python demo_detailed_event_info.py                                       # No filter (63 events)
-    python demo_detailed_event_info.py ../tests/test_data/ptrac_filter_none.ip
-    python demo_detailed_event_info.py ../tests/test_data/ptrac_filter_event.ip   # Event filter (9 events)
-    python demo_detailed_event_info.py ../tests/test_data/ptrac_filter_type.ip    # Type filter (13 events)
-    python demo_detailed_event_info.py ../tests/test_data/ptrac_filter_filter.ip  # Filter card (15 events)
-    python demo_detailed_event_info.py ../tests/test_data/ptrac_filter_tally.ip   # Tally filter (319 events)
-    python demo_detailed_event_info.py ../tests/test_data/ptrac_filter_all.ip     # Combined (2 events)
+    python demo_detailed_event_info.py                                                  # No filter (63 events)
+    python demo_detailed_event_info.py ../tests/test_data_github/ptrac_filter_none_ASC.ip
+    python demo_detailed_event_info.py ../tests/test_data_github/ptrac_filter_event_ASC.ip   # Event filter (9 events)
+    python demo_detailed_event_info.py ../tests/test_data_github/ptrac_filter_type_ASC.ip    # Type filter (13 events)
+    python demo_detailed_event_info.py ../tests/test_data_github/ptrac_filter_filter_ASC.ip  # Filter card (15 events)
+    python demo_detailed_event_info.py ../tests/test_data_github/ptrac_filter_tally_ASC.ip   # Tally filter (319 events)
+    python demo_detailed_event_info.py ../tests/test_data_github/ptrac_filter_all_ASC.ip     # Combined (2 events)
 """
 
 import sys
@@ -94,7 +94,7 @@ def main():
             ptrac_file = Path.cwd() / ptrac_file
     else:
         # Default file
-        ptrac_file = Path(__file__).parent.parent / 'tests' / 'test_data' / 'ptrac_filter_none.ip'
+        ptrac_file = Path(__file__).parent.parent / 'tests' / 'test_data_github' / 'ptrac_filter_none_ASC.ip'
 
     if not ptrac_file.exists():
         print(f"ERROR: File not found: {ptrac_file}")
@@ -103,13 +103,13 @@ def main():
         print(f"  python {Path(__file__).name} [ptrac_file]")
         print()
         print("Examples:")
-        print(f"  python {Path(__file__).name}                                       # No filter (63 events)")
-        print(f"  python {Path(__file__).name} ../tests/test_data/ptrac_filter_none.ip")
-        print(f"  python {Path(__file__).name} ../tests/test_data/ptrac_filter_event.ip   # Event filter (9 events)")
-        print(f"  python {Path(__file__).name} ../tests/test_data/ptrac_filter_type.ip    # Type filter (13 events)")
-        print(f"  python {Path(__file__).name} ../tests/test_data/ptrac_filter_filter.ip  # Filter card (15 events)")
-        print(f"  python {Path(__file__).name} ../tests/test_data/ptrac_filter_tally.ip   # Tally filter (319 events)")
-        print(f"  python {Path(__file__).name} ../tests/test_data/ptrac_filter_all.ip     # Combined (2 events)")
+        print(f"  python {Path(__file__).name}                                                  # No filter (63 events)")
+        print(f"  python {Path(__file__).name} ../tests/test_data_github/ptrac_filter_none_ASC.ip")
+        print(f"  python {Path(__file__).name} ../tests/test_data_github/ptrac_filter_event_ASC.ip   # Event filter (9 events)")
+        print(f"  python {Path(__file__).name} ../tests/test_data_github/ptrac_filter_type_ASC.ip    # Type filter (13 events)")
+        print(f"  python {Path(__file__).name} ../tests/test_data_github/ptrac_filter_filter_ASC.ip  # Filter card (15 events)")
+        print(f"  python {Path(__file__).name} ../tests/test_data_github/ptrac_filter_tally_ASC.ip   # Tally filter (319 events)")
+        print(f"  python {Path(__file__).name} ../tests/test_data_github/ptrac_filter_all_ASC.ip     # Combined (2 events)")
         return 1
 
     print(f"Reading PTRAC file: {ptrac_file.name}")

@@ -21,7 +21,7 @@ def main():
     print()
 
     # Path to test file
-    test_file = Path(__file__).parent.parent / 'tests' / 'test_data' / 'ptrac_filter_none.ip'
+    test_file = Path(__file__).parent.parent / 'tests' / 'test_data_github' / 'ptrac_filter_none_ASC.ip'
 
     if not test_file.exists():
         print(f"ERROR: Test file not found: {test_file}")

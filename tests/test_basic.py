@@ -44,7 +44,7 @@ def test_ptrac_creation():
     """Test creating a Ptrac object"""
     try:
         import mcnptoolspro as m
-        test_file = Path(__file__).parent / 'test_data' / 'ptrac_filter_none.ip'
+        test_file = Path(__file__).parent / 'test_data_github' / 'ptrac_filter_none_ASC.ip'
 
         if not test_file.exists():
             print("[SKIP] Ptrac creation (test file not found)")
@@ -63,7 +63,7 @@ def test_read_histories():
     """Test reading histories from PTRAC file"""
     try:
         import mcnptoolspro as m
-        test_file = Path(__file__).parent / 'test_data' / 'ptrac_filter_none.ip'
+        test_file = Path(__file__).parent / 'test_data_github' / 'ptrac_filter_none_ASC.ip'
 
         if not test_file.exists():
             print("[SKIP] Read histories (test file not found)")
@@ -87,7 +87,7 @@ def test_event_access():
     """Test accessing event data"""
     try:
         import mcnptoolspro as m
-        test_file = Path(__file__).parent / 'test_data' / 'ptrac_filter_none.ip'
+        test_file = Path(__file__).parent / 'test_data_github' / 'ptrac_filter_none_ASC.ip'
 
         if not test_file.exists():
             print("[SKIP] Event access (test file not found)")
