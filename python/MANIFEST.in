@@ -8,8 +8,8 @@ include ../LICENSE
 recursive-include ../libmcnptools *.cpp *.hpp *.h
 recursive-include ../mcnptools *.cpp *.hpp *.h
 
-# Include HDF5 DLL for Windows
-include mcnptoolspro/hdf5.dll
+# Include Windows runtime DLL dependencies
+include mcnptoolspro/*.dll
 
 # Include Python package files
 recursive-include mcnptoolspro *.py

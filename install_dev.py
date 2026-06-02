@@ -1,24 +1,34 @@
 #!/usr/bin/env python3
 """
-Development Installation Script for mcnptoolspro
+Development installer for mcnptoolspro.
 
-Automatically builds the C++ wrapper and installs the package in editable mode.
-Works on Windows, Linux, and macOS.
+On Windows this script installs HDF5 with a local vcpkg checkout when the HDF5
+development files are missing.
 
-Usage:
-    python install_dev.py
+Important: this script does not use CMAKE_TOOLCHAIN_FILE for vcpkg. The
+shacl-F5_CXX dependency wraps find_package(), and the vcpkg HDF5 wrapper can
+recurse through that path. Instead, we pass HDF5/ZLIB locations directly.
 """
 
-import sys
+from __future__ import annotations
+
+import multiprocessing
 import os
 import platform
-import subprocess
 import shutil
+import site
+import subprocess
+import sys
 from pathlib import Path
 
 
-def print_header(message):
-    """Print a formatted header"""
+BUILD_DIR_NAME = "build"
+WINDOWS_GENERATOR = "Visual Studio 17 2022"
+WINDOWS_TRIPLET = "x64-windows"
+RUNTIME_DLLS = ("hdf5.dll", "z.dll", "aec.dll", "szip.dll")
+
+
+def print_header(message: str) -> None:
     print()
     print("=" * 76)
     print(message.center(76))
@@ -26,88 +36,213 @@ def print_header(message):
     print()
 
 
-def print_step(step_num, message):
-    """Print a step message"""
-    print(f"[{step_num}/4] {message}...")
+def print_step(step_num: int, total: int, message: str) -> None:
+    print(f"[{step_num}/{total}] {message}...")
     print()
 
 
-def run_command(cmd, cwd=None, shell=False):
-    """Run a command and print output in real-time"""
-    print(f"  Running: {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
+def run_command(cmd: list[str], cwd: Path | None = None) -> bool:
+    print(f"  Running: {' '.join(cmd)}")
     print()
 
     try:
-        # Use shell=True on Windows for commands like 'copy'
         result = subprocess.run(
             cmd,
             cwd=cwd,
-            shell=shell,
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
         )
-
-        # Print output
-        if result.stdout:
-            for line in result.stdout.splitlines():
-                print(f"  {line}")
-            print()
-
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print(f"  ERROR: Command failed with exit code {e.returncode}")
-        if e.stdout:
+    except subprocess.CalledProcessError as exc:
+        print(f"  ERROR: command failed with exit code {exc.returncode}")
+        if exc.stdout:
             print()
             print("  Output:")
-            for line in e.stdout.splitlines():
+            for line in exc.stdout.splitlines():
                 print(f"  {line}")
         print()
         return False
 
+    if result.stdout:
+        for line in result.stdout.splitlines():
+            print(f"  {line}")
+        print()
 
-def check_prerequisites():
-    """Check if required tools are installed"""
-    print_step(1, "Checking prerequisites")
+    return True
 
-    issues = []
 
-    # Check Python version
-    py_version = sys.version_info
-    if py_version < (3, 7):
-        issues.append(f"Python 3.7+ required (found {py_version.major}.{py_version.minor})")
+def command_output(cmd: list[str]) -> str | None:
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip()
+
+
+def find_vcpkg_root(root_dir: Path) -> Path | None:
+    candidates = []
+
+    env_root = os.environ.get("VCPKG_ROOT")
+    if env_root:
+        candidates.append(Path(env_root))
+
+    candidates.extend(
+        [
+            root_dir.parent / "vcpkg",
+            Path.home() / "SOFTWARES" / "vcpkg",
+            Path("C:/vcpkg"),
+        ]
+    )
+
+    for candidate in candidates:
+        if (candidate / "vcpkg.exe").exists():
+            return candidate.resolve()
+
+    return None
+
+
+def windows_hdf5_paths(root_dir: Path) -> dict[str, Path] | None:
+    vcpkg_root = find_vcpkg_root(root_dir)
+    if not vcpkg_root:
+        return None
+
+    prefix = vcpkg_root / "installed" / WINDOWS_TRIPLET
+    return {
+        "vcpkg_root": vcpkg_root,
+        "prefix": prefix,
+        "hdf5_dir": prefix / "share" / "hdf5",
+        "include": prefix / "include" / "hdf5.h",
+        "hdf5_lib": prefix / "lib" / "hdf5.lib",
+        "zlib_lib": prefix / "lib" / "z.lib",
+        "bin": prefix / "bin",
+    }
+
+
+def windows_hdf5_is_ready(root_dir: Path) -> bool:
+    hdf5 = windows_hdf5_paths(root_dir)
+    if hdf5 is None:
+        return False
+
+    required = [
+        hdf5["include"],
+        hdf5["hdf5_lib"],
+        hdf5["zlib_lib"],
+        *(hdf5["bin"] / dll for dll in RUNTIME_DLLS),
+    ]
+    return all(path.exists() for path in required)
+
+
+def ensure_windows_hdf5(root_dir: Path) -> bool:
+    if platform.system() != "Windows" or windows_hdf5_is_ready(root_dir):
+        return True
+
+    print("  HDF5 development files were not found.")
+    print("  Installing HDF5 with local vcpkg...")
+    print()
+
+    vcpkg_root = find_vcpkg_root(root_dir)
+    if vcpkg_root is None:
+        vcpkg_root = (root_dir.parent / "vcpkg").resolve()
+        if not run_command(
+            [
+                "git",
+                "clone",
+                "https://github.com/microsoft/vcpkg.git",
+                str(vcpkg_root),
+            ]
+        ):
+            return False
+
+    vcpkg_exe = vcpkg_root / "vcpkg.exe"
+    if not vcpkg_exe.exists():
+        bootstrap = vcpkg_root / "bootstrap-vcpkg.bat"
+        if not bootstrap.exists():
+            print(f"  ERROR: vcpkg bootstrap script not found: {bootstrap}")
+            print()
+            return False
+        if not run_command([str(bootstrap)], cwd=vcpkg_root):
+            return False
+
+    if not run_command(
+        [
+            str(vcpkg_exe),
+            "install",
+            f"hdf5:{WINDOWS_TRIPLET}",
+            "--disable-metrics",
+        ],
+        cwd=vcpkg_root,
+    ):
+        return False
+
+    if not windows_hdf5_is_ready(root_dir):
+        print("  ERROR: HDF5 installation finished, but required files are still missing.")
+        print()
+        return False
+
+    print("  [OK] HDF5 installed with vcpkg")
+    print()
+    return True
+
+
+def check_prerequisites(root_dir: Path) -> bool:
+    print_step(1, 5, "Checking prerequisites")
+    issues: list[str] = []
+
+    if sys.version_info < (3, 7):
+        issues.append(
+            f"Python 3.7+ required, found {sys.version_info.major}.{sys.version_info.minor}"
+        )
     else:
-        print(f"  [OK] Python {py_version.major}.{py_version.minor}.{py_version.micro}")
+        print(
+            f"  [OK] Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        )
 
-    # Check CMake
-    try:
-        result = subprocess.run(['cmake', '--version'], capture_output=True, text=True)
-        cmake_version = result.stdout.split('\n')[0]
-        print(f"  [OK] {cmake_version}")
-    except FileNotFoundError:
-        issues.append("CMake not found - install from https://cmake.org/download/")
+    cmake_version = command_output(["cmake", "--version"])
+    if cmake_version:
+        print(f"  [OK] {cmake_version.splitlines()[0]}")
+    else:
+        issues.append("CMake not found")
 
-    # Check Git
-    try:
-        result = subprocess.run(['git', '--version'], capture_output=True, text=True)
-        git_version = result.stdout.strip()
+    git_version = command_output(["git", "--version"])
+    if git_version:
         print(f"  [OK] {git_version}")
-    except FileNotFoundError:
-        issues.append("Git not found - install from https://git-scm.com/")
+    else:
+        issues.append("Git not found")
 
-    # Platform-specific checks
     system = platform.system()
     print(f"  [OK] Platform: {system}")
 
-    if system == 'Windows':
-        # Check for Visual Studio
-        vswhere_path = r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
-        if os.path.exists(vswhere_path):
+    if system == "Windows":
+        vswhere = Path(r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe")
+        if vswhere.exists():
             print("  [OK] Visual Studio detected")
         else:
-            issues.append("Visual Studio not found - install from https://visualstudio.microsoft.com/")
+            issues.append('Visual Studio with "Desktop development with C++" not found')
+
+        if not issues and not ensure_windows_hdf5(root_dir):
+            issues.append("Could not install HDF5 with vcpkg")
+
+        hdf5 = windows_hdf5_paths(root_dir)
+        if not hdf5:
+            issues.append(
+                "vcpkg not found. Set VCPKG_ROOT or install it next to this repository."
+            )
+        else:
+            print(f"  [OK] vcpkg: {hdf5['vcpkg_root']}")
+            for label in ("include", "hdf5_lib", "zlib_lib"):
+                if hdf5[label].exists():
+                    print(f"  [OK] {hdf5[label]}")
+                else:
+                    issues.append(f"Missing {hdf5[label]}")
+
+            for dll in RUNTIME_DLLS:
+                dll_path = hdf5["bin"] / dll
+                if not dll_path.exists():
+                    issues.append(f"Missing runtime DLL: {dll_path}")
+
+            if hdf5 and not issues:
+                print("  [OK] HDF5/ZLIB runtime DLLs found")
 
     print()
 
@@ -115,265 +250,235 @@ def check_prerequisites():
         print("  Prerequisites missing:")
         for issue in issues:
             print(f"    [X] {issue}")
+        if system == "Windows":
+            print()
+            print("  Install HDF5 with:")
+            print(r"    C:\Users\ducasse-que\SOFTWARES\vcpkg\vcpkg.exe install hdf5:x64-windows")
         print()
         return False
 
     return True
 
 
-def configure_cmake(root_dir):
-    """Configure CMake build"""
-    print_step(2, "Configuring CMake build")
+def clean_cmake_cache(build_dir: Path) -> None:
+    if not build_dir.exists():
+        return
 
-    build_dir = root_dir / 'build'
-    system = platform.system()
-
-    # Clean CMake cache to avoid configuration conflicts
-    cmake_cache = build_dir / 'CMakeCache.txt'
-    if cmake_cache.exists():
-        print("  Cleaning existing CMake cache...")
-        try:
-            cmake_cache.unlink()
-            print(f"  [OK] Removed: {cmake_cache}")
-        except Exception as e:
-            print(f"  Warning: Could not remove cache: {e}")
-        print()
-
-    # Build CMake command
-    cmd = [
-        'cmake',
-        '-S', str(root_dir),
-        '-B', str(build_dir),
-        '-DCMAKE_BUILD_TYPE=Release',
-        '-DBUILD_TESTING=OFF'
+    stale_files = [
+        build_dir / "CMakeCache.txt",
+        build_dir / "cmake_install.cmake",
     ]
 
-    # Add Visual Studio generator on Windows
-    if system == 'Windows':
-        cmd.extend(['-G', 'Visual Studio 17 2022'])
+    for stale_file in stale_files:
+        if stale_file.exists():
+            stale_file.unlink()
+            print(f"  [OK] Removed stale file: {stale_file}")
 
+    cmake_files = build_dir / "CMakeFiles"
+    if cmake_files.exists():
+        shutil.rmtree(cmake_files)
+        print(f"  [OK] Removed stale directory: {cmake_files}")
+
+    if stale_files or cmake_files.exists():
+        print()
+
+
+def cmake_configure_args(root_dir: Path, build_dir: Path) -> list[str]:
+    cmd = [
+        "cmake",
+        "-S",
+        str(root_dir),
+        "-B",
+        str(build_dir),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DBUILD_TESTING=OFF",
+    ]
+
+    if platform.system() == "Windows":
+        hdf5 = windows_hdf5_paths(root_dir)
+        if hdf5 is None:
+            raise RuntimeError("vcpkg/HDF5 paths are unavailable")
+
+        cmd.extend(
+            [
+                f"-DCMAKE_PREFIX_PATH={hdf5['prefix']}",
+                f"-DHDF5_DIR={hdf5['hdf5_dir']}",
+                f"-DZLIB_ROOT={hdf5['prefix']}",
+                "-G",
+                WINDOWS_GENERATOR,
+            ]
+        )
+
+    return cmd
+
+
+def configure_cmake(root_dir: Path) -> bool:
+    print_step(2, 5, "Configuring CMake build")
+    build_dir = root_dir / BUILD_DIR_NAME
+
+    clean_cmake_cache(build_dir)
+    return run_command(cmake_configure_args(root_dir, build_dir))
+
+
+def build_wrapper(root_dir: Path) -> bool:
+    print_step(3, 5, "Building C++ wrapper")
+    build_dir = root_dir / BUILD_DIR_NAME
+    jobs = "8" if platform.system() == "Windows" else str(multiprocessing.cpu_count())
+
+    cmd = [
+        "cmake",
+        "--build",
+        str(build_dir),
+        "--target",
+        "_mcnptools_wrap",
+    ]
+
+    if platform.system() == "Windows":
+        cmd.extend(["--config", "Release"])
+
+    cmd.extend(["-j", jobs])
     return run_command(cmd)
 
 
-def build_wrapper(root_dir):
-    """Build the C++ wrapper"""
-    print_step(3, "Building C++ wrapper")
+def copy_built_artifacts(root_dir: Path) -> bool:
+    print_step(4, 5, "Copying Python extension and runtime libraries")
 
-    build_dir = root_dir / 'build'
-    system = platform.system()
+    build_dir = root_dir / BUILD_DIR_NAME
+    package_dir = root_dir / "python" / "mcnptoolspro"
+    package_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build command
-    cmd = [
-        'cmake',
-        '--build', str(build_dir),
-        '--target', '_mcnptools_wrap'
-    ]
-
-    # Add config for Windows
-    if system == 'Windows':
-        cmd.extend(['--config', 'Release'])
-
-    # Add parallel build flag
-    if system != 'Windows':
-        import multiprocessing
-        cmd.extend(['-j', str(multiprocessing.cpu_count())])
+    if platform.system() == "Windows":
+        wrapper_src = build_dir / "python" / "mcnptoolspro" / "Release" / "_mcnptools_wrap.pyd"
+        wrapper_dst = package_dir / "_mcnptools_wrap.pyd"
     else:
-        cmd.extend(['-j', '8'])
-
-    if not run_command(cmd):
-        return False
-
-    # Copy the compiled wrapper to the Python package directory
-    print("  Copying compiled wrapper to Python package...")
-    print()
-
-    python_pkg_dir = root_dir / 'python' / 'mcnptoolspro'
-
-    if system == 'Windows':
-        wrapper_src = build_dir / 'python' / 'mcnptoolspro' / 'Release' / '_mcnptools_wrap.pyd'
-        wrapper_dst = python_pkg_dir / '_mcnptools_wrap.pyd'
-    else:
-        wrapper_src = build_dir / 'python' / 'mcnptoolspro' / '_mcnptools_wrap.so'
-        wrapper_dst = python_pkg_dir / '_mcnptools_wrap.so'
+        wrapper_src = build_dir / "python" / "mcnptoolspro" / "_mcnptools_wrap.so"
+        wrapper_dst = package_dir / "_mcnptools_wrap.so"
 
     if not wrapper_src.exists():
-        print(f"  ERROR: Compiled wrapper not found at: {wrapper_src}")
+        print(f"  ERROR: compiled wrapper not found at {wrapper_src}")
         print()
         return False
 
-    try:
-        shutil.copy2(wrapper_src, wrapper_dst)
-        print(f"  [OK] Copied: {wrapper_dst.name}")
-        print()
-        return True
-    except Exception as e:
-        print(f"  ERROR: Failed to copy wrapper: {e}")
-        print()
-        return False
+    shutil.copy2(wrapper_src, wrapper_dst)
+    print(f"  [OK] Copied: {wrapper_dst}")
+
+    if platform.system() == "Windows":
+        hdf5 = windows_hdf5_paths(root_dir)
+        if hdf5 is None:
+            print("  ERROR: vcpkg/HDF5 paths are unavailable")
+            print()
+            return False
+
+        for dll in RUNTIME_DLLS:
+            src = hdf5["bin"] / dll
+            dst = package_dir / dll
+            shutil.copy2(src, dst)
+            print(f"  [OK] Copied: {dst}")
+
+    print()
+    return True
 
 
-def install_package(root_dir):
-    """Install the Python package in editable mode"""
-    print_step(4, "Installing Python package in editable mode")
+def install_package(root_dir: Path) -> bool:
+    print_step(5, 5, "Installing Python package in editable mode")
 
-    python_dir = root_dir / 'python'
+    python_dir = root_dir / "python"
+    user_site = Path(site.getusersitepackages())
+    user_site.mkdir(parents=True, exist_ok=True)
 
-    # Create .pth file for editable install instead of using pip install -e
-    # This avoids pip rebuilding with CMake and causing cache conflicts
-    print("  Creating editable installation...")
+    pth_file = user_site / "mcnptoolspro.pth"
+    pth_file.write_text(str(python_dir) + "\n", encoding="utf-8")
+
+    print(f"  [OK] Created: {pth_file}")
+    print(f"  [OK] Points to: {python_dir}")
     print()
 
-    try:
-        # Find site-packages directory
-        import site
-        user_site = site.getusersitepackages()
-
-        # Create site-packages if it doesn't exist
-        import os
-        os.makedirs(user_site, exist_ok=True)
-
-        # Create .pth file pointing to our package
-        pth_file = Path(user_site) / 'mcnptoolspro.pth'
-        with open(pth_file, 'w') as f:
-            f.write(str(python_dir) + '\n')
-
-        print(f"  [OK] Created: {pth_file}")
-        print(f"  [OK] Points to: {python_dir}")
-        print()
-
-        return True
-
-    except Exception as e:
-        print(f"  ERROR: Failed to create editable install: {e}")
-        print()
-        return False
+    return True
 
 
-def verify_installation():
-    """Verify that the installation works"""
-    print()
-    print("=" * 76)
-    print("Verifying installation...".center(76))
-    print("=" * 76)
-    print()
+def verify_installation(root_dir: Path) -> bool:
+    print_header("Verifying installation")
 
-    # Run verification in a fresh Python process (required for .pth to be loaded)
-    verification_code = """
+    test_hdf5 = root_dir / "tests" / "test_data_github" / "example_ptrac_3_HDF5.h5"
+    verification_code = f"""
 import sys
-try:
-    import mcnptoolspro as m
-    print(f"  [OK] mcnptoolspro imported successfully")
-    print(f"  [OK] Location: {m.__file__}")
-    print()
+import mcnptoolspro as m
 
-    # Check that Ptrac class is accessible
-    if hasattr(m.Ptrac, 'ASC_PTRAC'):
-        print("  [OK] Ptrac.ASC_PTRAC constant accessible")
-    if hasattr(m.Ptrac, 'BIN_PTRAC'):
-        print("  [OK] Ptrac.BIN_PTRAC constant accessible")
-    if hasattr(m.Ptrac, 'HDF5_PTRAC'):
-        print("  [OK] Ptrac.HDF5_PTRAC constant accessible")
+print("  [OK] mcnptoolspro imported successfully")
+print(f"  [OK] Location: {{m.__file__}}")
+print(f"  [OK] Ptrac.ASC_PTRAC = {{m.Ptrac.ASC_PTRAC}}")
+print(f"  [OK] Ptrac.BIN_PTRAC = {{m.Ptrac.BIN_PTRAC}}")
+print(f"  [OK] Ptrac.HDF5_PTRAC = {{m.Ptrac.HDF5_PTRAC}}")
 
-    sys.exit(0)
-except ImportError as e:
-    print(f"  [X] Import failed: {e}")
-    sys.exit(1)
+test_hdf5 = r"{test_hdf5}"
+if test_hdf5:
+    p = m.Ptrac(test_hdf5, m.Ptrac.HDF5_PTRAC)
+    histories = p.ReadHistories(1)
+    print(f"  [OK] HDF5 test histories read: {{len(histories)}}")
 """
 
     try:
         result = subprocess.run(
-            [sys.executable, '-c', verification_code],
+            [sys.executable, "-c", verification_code],
+            cwd=root_dir,
             capture_output=True,
-            text=True
+            text=True,
         )
-
-        # Print output
-        if result.stdout:
-            print(result.stdout)
-
-        if result.returncode == 0:
-            print()
-            print("=" * 76)
-            print("Installation successful!".center(76))
-            print("=" * 76)
-            print()
-            print("You can now use mcnptoolspro in your Python scripts.")
-            print()
-            return True
-        else:
-            if result.stderr:
-                print(result.stderr)
-            print()
-            print("=" * 76)
-            print("Installation verification failed".center(76))
-            print("=" * 76)
-            print()
-            return False
-
-    except Exception as e:
-        print(f"  [X] Verification error: {e}")
-        print()
-        print("=" * 76)
-        print("Installation verification failed".center(76))
-        print("=" * 76)
+    except Exception as exc:
+        print(f"  [X] Verification error: {exc}")
         print()
         return False
 
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
 
-def main():
-    """Main installation routine"""
+    if result.returncode != 0:
+        print_header("Installation verification failed")
+        return False
+
+    print_header("Installation successful")
+    print("You can now use mcnptoolspro in your Python scripts.")
+    print()
+    return True
+
+
+def main() -> int:
     print_header("mcnptoolspro - Development Installation")
 
     print("This script will:")
     print("  1. Check prerequisites")
-    print("  2. Configure CMake build")
-    print("  3. Build C++ wrapper")
-    print("  4. Install Python package in editable mode")
+    print("  2. Configure CMake with explicit HDF5/ZLIB paths")
+    print("  3. Build the C++ wrapper")
+    print("  4. Copy the Python extension and runtime DLLs")
+    print("  5. Install the Python package in editable mode")
     print()
 
-    # Get root directory (where this script is located)
     root_dir = Path(__file__).parent.resolve()
     print(f"Working directory: {root_dir}")
+    print(f"Build directory:   {root_dir / BUILD_DIR_NAME}")
     print()
 
-    # Step 1: Check prerequisites
-    if not check_prerequisites():
-        print("Please install missing prerequisites and try again.")
-        return 1
+    steps = (
+        lambda: check_prerequisites(root_dir),
+        lambda: configure_cmake(root_dir),
+        lambda: build_wrapper(root_dir),
+        lambda: copy_built_artifacts(root_dir),
+        lambda: install_package(root_dir),
+    )
 
-    # Step 2: Configure CMake
-    if not configure_cmake(root_dir):
-        print("CMake configuration failed. Check the error messages above.")
-        return 1
+    for step in steps:
+        if not step():
+            return 1
 
-    # Step 3: Build wrapper
-    if not build_wrapper(root_dir):
-        print("Build failed. Check the error messages above.")
-        return 1
-
-    # Step 4: Install package
-    if not install_package(root_dir):
-        print("Package installation failed. Check the error messages above.")
-        return 1
-
-    # Verify installation
-    if not verify_installation():
-        return 1
-
-    return 0
+    return 0 if verify_installation(root_dir) else 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        sys.exit(main())
+        raise SystemExit(main())
     except KeyboardInterrupt:
         print()
-        print()
         print("Installation interrupted by user.")
-        sys.exit(1)
-    except Exception as e:
-        print()
-        print(f"Unexpected error: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+        raise SystemExit(1)

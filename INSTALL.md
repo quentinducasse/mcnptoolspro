@@ -1,377 +1,147 @@
 # Installation Guide - mcnptoolspro
 
-**Platform-specific installation instructions**
+This guide explains how to build and install `mcnptoolspro` for development.
 
----
-
-## 📑 Table of Contents
-
-- [Windows Installation](#-windows-installation)
-- [Linux/macOS Installation](#-linuxmacos-installation)
-- [Troubleshooting](#-troubleshooting)
-- [Testing](#-test-installation)
-
----
-
-## 🪟 Windows Installation
+## Windows
 
 ### Prerequisites
 
-Install these tools **before** building mcnptoolspro:
+Install these first:
 
-1. **Visual Studio 2017 or later** (with "Desktop development with C++" workload)
-   - Download: https://visualstudio.microsoft.com/downloads/
-   - **OR** install "Build Tools for Visual Studio" (smaller, CLI-only)
-   - **Required** for MSVC compiler (CMake won't work without it!)
+1. Python 3.7 or newer
+2. CMake 3.21 or newer
+3. Git
+4. Visual Studio 2017 or newer, with the "Desktop development with C++" workload
 
-2. **CMake 3.13+**
-   - Install via: `choco install cmake` (Chocolatey)
-   - **OR** download from: https://cmake.org/download/
-   - **OR** install via pip: `pip install cmake`
+HDF5 is handled by `install_dev.py` on Windows. If the script cannot find a
+local vcpkg installation with `hdf5:x64-windows`, it will:
 
-3. **Python 3.7+**
-   - Download from: https://python.org
-   - **OR** install from Microsoft Store
+1. clone vcpkg next to this repository, for example `C:\Users\<you>\SOFTWARES\vcpkg`
+2. bootstrap vcpkg
+3. install `hdf5:x64-windows`
+4. configure CMake with explicit HDF5 and ZLIB paths
 
-4. **Git** (for cloning)
-   - Download from: https://git-scm.com/
+The script intentionally does not use `CMAKE_TOOLCHAIN_FILE` for vcpkg because
+the `shacl-F5_CXX` dependency wraps `find_package()`, which can recurse through
+the vcpkg HDF5 wrapper.
 
-**Note**: `hdf5.dll` is **already bundled** in the repository. No need to install HDF5 separately on Windows!
-
-### Installation Steps
+### Install
 
 ```powershell
-# 1. Clone the repository
 git clone https://github.com/quentinducasse/mcnptoolspro.git
 cd mcnptoolspro
-
-# 2. Run the automated installation script
 python install_dev.py
 ```
 
-**What the script does:**
-- ✓ Checks all prerequisites (Python, CMake, Git, Visual Studio)
-- ✓ Configures CMake with Visual Studio generator
-- ✓ Builds the C++ wrapper (`_mcnptools_wrap.pyd`)
-- ✓ Copies the compiled wrapper to the Python package
-- ✓ Installs the package in editable mode
-- ✓ Verifies the installation works
+That single command configures CMake, builds the Python extension, copies the
+required runtime DLLs, creates an editable Python install, and verifies the
+installation.
 
-That's it! The script handles everything automatically.
+### What Gets Copied
 
-### Updating (Windows)
+On Windows, the package directory receives:
 
-To update to the latest version:
+- `_mcnptools_wrap.pyd`
+- `hdf5.dll`
+- `z.dll`
+- `aec.dll`
+- `szip.dll`
 
-```powershell
-cd mcnptoolspro
-git pull origin main
+These DLLs must sit beside the `.pyd` so Python can load the extension reliably.
 
-# Re-run the installation script
-python install_dev.py
-```
+## Linux
 
-**Note**: Python code changes are picked up automatically (editable mode), but C++ changes require rebuilding.
-
----
-
-## 🐧 Linux/macOS Installation
-
-### Prerequisites
-
-Install required tools and libraries:
-
-#### Ubuntu/Debian
+Install the system HDF5 development package first:
 
 ```bash
-# Install build tools and dependencies
 sudo apt update
 sudo apt install build-essential git python3-dev libhdf5-dev cmake
-
-# Verify versions
-python3 --version  # Must be >= 3.7
-cmake --version    # Must be >= 3.21
+python3 install_dev.py
 ```
 
-**Note**: If `cmake --version` shows < 3.21 (e.g., Ubuntu 20.04 has 3.16), see [CMake too old](#issue-cmake-not-found-or-version-too-old) in Troubleshooting.
-
-#### Fedora/RedHat
+For Fedora/RedHat:
 
 ```bash
 sudo yum install gcc-c++ git python3-devel hdf5-devel cmake
+python3 install_dev.py
 ```
 
-#### Arch Linux
+For Arch Linux:
 
 ```bash
 sudo pacman -S base-devel git python hdf5 cmake
+python install_dev.py
 ```
 
-#### macOS (Homebrew)
+## macOS
+
+Install prerequisites with Homebrew:
 
 ```bash
 brew install hdf5 cmake python git
-```
-
-**Note**: Unlike Windows, HDF5 is **not bundled** on Linux/macOS. You must install it via your package manager (standard practice for C++ projects).
-
-### Installation Steps
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/quentinducasse/mcnptoolspro.git
-cd mcnptoolspro
-
-# 2. Run the automated installation script
 python3 install_dev.py
 ```
 
-**What the script does:**
-- ✓ Checks all prerequisites (Python, CMake, Git, GCC/Clang)
-- ✓ Configures CMake for your platform
-- ✓ Builds the C++ wrapper (`_mcnptools_wrap.so`)
-- ✓ Copies the compiled wrapper to the Python package
-- ✓ Installs the package in editable mode
-- ✓ Verifies the installation works
+## Verify
 
-That's it! The script handles everything automatically.
-
-### Updating (Linux/macOS)
-
-To update to the latest version:
+After installation:
 
 ```bash
-cd mcnptoolspro
-git pull origin main
-
-# Re-run the installation script
-python3 install_dev.py
+python -c "import mcnptoolspro as m; print(m.__file__); print(m.Ptrac.HDF5_PTRAC)"
 ```
 
-**Note**: Python code changes are picked up automatically (editable mode), but C++ changes require rebuilding.
+Expected result: the import succeeds and `HDF5_PTRAC` prints `2`.
 
----
+## Troubleshooting
 
-## 📋 System Requirements Summary
+### VS Code Shows a Yellow Underline on `import mcnptoolspro`
 
-| Platform | Requirements |
-|----------|-------------|
-| **Windows** | Visual Studio 2017+ (MSVC), CMake 3.21+, Python 3.7+, Git<br/>**HDF5**: ✅ Bundled (no installation needed) |
-| **Linux** | GCC 7+, CMake 3.21+, Python 3.7+, libhdf5-dev, build-essential, git<br/>**HDF5**: ⚙️ Install via package manager |
-| **macOS** | Xcode Command Line Tools, CMake 3.21+, Python 3.7+, Git<br/>**HDF5**: ⚙️ Install via Homebrew |
+This is usually a Pylance/static-analysis issue, not an installation failure.
+Make sure VS Code uses the same Python interpreter that ran `install_dev.py`.
 
-**Python Dependencies**: None! mcnptoolspro is a pure C++ wrapper with no Python dependencies.
+This repository includes a workspace setting that adds `./python` to
+`python.analysis.extraPaths`. If the underline remains, reload VS Code:
 
----
-
-## 🐛 Troubleshooting
-
-### Windows Issues
-
-#### Issue: `Visual Studio not found`
-
-**Solution**: Install Visual Studio 2017 or later
-
-Download from: https://visualstudio.microsoft.com/downloads/
-
-Choose "Desktop development with C++" workload.
-
-#### Issue: `ImportError: DLL load failed`
-
-**Note**: `hdf5.dll` is bundled, so this should rarely happen!
-
-**Solutions**:
-
-1. Verify `hdf5.dll` is present:
-   ```powershell
-   ls python\mcnptoolspro\hdf5.dll
-   ```
-
-2. Install Visual C++ Redistributable:
-   - Download: https://aka.ms/vs/17/release/vc_redist.x64.exe
-
-### Linux/macOS Issues
-
-#### Issue: `CMake not found` or version too old
-
-**Symptoms**:
-- `CMake 3.21 or higher is required. You are running version 3.16.3`
-- `cmake: command not found`
-- `ModuleNotFoundError: No module named 'cmake'` when running cmake
-
-**Solution**:
-
-```bash
-# 1. If you have cmake installed via pip, uninstall it (it's broken)
-pip3 uninstall cmake -y
-
-# 2. Install CMake 3.21+
-# For Ubuntu 20.04 (easiest method):
-sudo snap install cmake --classic
-export PATH=/snap/bin:$PATH
-
-# Verify
-cmake --version  # Should show >= 3.21
-which cmake      # Should show /snap/bin/cmake
+```text
+Ctrl+Shift+P -> Developer: Reload Window
 ```
 
-**Alternative methods for CMake 3.21+**:
-- **Ubuntu 22.04+**: `sudo apt install cmake` (already >= 3.21)
-- **Kitware official repo** (Ubuntu 20.04):
-  ```bash
-  wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
-  sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
-  sudo apt update && sudo apt install cmake
-  ```
+### Windows: HDF5 Not Found
 
-**IMPORTANT**: NEVER use `pip install cmake` - it creates a broken Python wrapper that conflicts with build tools.
+Run:
 
-#### Issue: `libhdf5 not found`
-
-**Solution**: Install HDF5 development libraries
-
-```bash
-# Debian/Ubuntu
-sudo apt-get install libhdf5-dev
-
-# RedHat/CentOS
-sudo yum install hdf5-devel
-
-# Arch Linux
-sudo pacman -S hdf5
-
-# macOS
-brew install hdf5
+```powershell
+python install_dev.py
 ```
 
-### All Platforms
+The script should install HDF5 through vcpkg automatically. If it fails, check
+that Git, CMake, and Visual Studio C++ tools are available in your environment.
 
-#### Issue: VSCode shows yellow underline on `import mcnptoolspro`
+### Windows: DLL Load Failed
 
-**Cause**: VSCode/Pylance can't find the package or uses a different Python interpreter.
+Re-run:
 
-**Solution**:
-
-1. **Select correct interpreter**:
-   - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
-   - Type: `Python: Select Interpreter`
-   - Choose the interpreter where mcnptoolspro is installed
-
-2. **Reload VSCode**:
-   - Press `Ctrl+Shift+P` → `Developer: Reload Window`
-
-3. **Verify installation**:
-   ```bash
-   python -c "import mcnptoolspro; print('OK')"
-   ```
-
-**Note**: The yellow underline is just a linting warning. If the import works in terminal, it will work at runtime.
-
-#### Issue: CMake configuration conflict
-
-**Cause**: CMake cache from a previous build method.
-
-**Solution**: Remove the cache file:
-
-```bash
-# Windows
-Remove-Item build\CMakeCache.txt -ErrorAction SilentlyContinue
-
-# Linux/macOS
-rm -f build/CMakeCache.txt
+```powershell
+python install_dev.py
 ```
 
-Then retry the installation.
+The script recopies the required DLLs next to `_mcnptools_wrap.pyd`.
 
-#### Issue: `ModuleNotFoundError: No module named 'mcnptoolspro'`
+### CMake Cache Problems
 
-**Solution**: Installation failed or wrong Python environment
+The installer clears stale CMake cache files in `build` before configuring. If
+you manually experimented with other CMake settings, remove the build directory
+and run the installer again:
 
-```bash
-# Check installation
-pip list | grep mcnptools
-
-# If not listed, reinstall (see platform-specific instructions above)
-cd mcnptoolspro/python
-pip install -e .
+```powershell
+Remove-Item build -Recurse -Force
+python install_dev.py
 ```
 
----
+## Notes for Developers
 
-## 🧪 Test Installation
-
-### Quick Test
-
-```python
-import mcnptoolspro as m
-print(f"mcnptoolspro loaded from: {m.__file__}")
-```
-
-### Full Test (if you have PTRAC files)
-
-```python
-import mcnptoolspro as m
-
-# Read PTRAC file
-ptrac = m.Ptrac('your_file.ptrac', m.Ptrac.ASC_PTRAC)
-
-# Read first 10 histories
-histories = ptrac.ReadHistories(10)
-
-# Print summary
-print(f"Read {len(histories)} histories")
-for i, hist in enumerate(histories):
-    print(f"  History {i+1}: {hist.GetNumEvents()} events")
-```
-
----
-
-## 📊 Installation Methods Comparison
-
-| Method | Platform | Use Case | Command |
-|--------|----------|----------|---------|
-| **Editable Install** | All | Recommended | `git clone ... && cd python && pip install -e .` |
-| **Manual Build** | All | Expert control | `cmake ... && cmake --build ... && pip install -e .` |
-
----
-
-## 🔄 Update mcnptoolspro
-
-See platform-specific update instructions in [Windows Installation](#updating-windows) or [Linux/macOS Installation](#updating-linuxmacos).
-
----
-
-## ✅ Installation Checklist
-
-After installation, verify:
-
-- [ ] `python -c "import mcnptoolspro"` works without errors
-- [ ] Can create `Ptrac` object: `m.Ptrac('file.ptrac', m.Ptrac.ASC_PTRAC)`
-- [ ] Can access other classes: `m.Mctal`, `m.Meshtal`
-- [ ] Can read PTRAC files (if you have test files)
-
----
-
-## 🆘 Still Having Issues?
-
-1. **Check prerequisites**: Ensure CMake ≥ 3.13, Python ≥ 3.7
-2. **Read platform-specific sections**: Windows or Linux/macOS
-3. **Check troubleshooting**: See [Troubleshooting](#-troubleshooting) section
-4. **Open an issue**: https://github.com/quentinducasse/mcnptoolspro/issues
-
-When reporting issues, include:
-- Operating system and version
-- Python version (`python --version`)
-- CMake version (`cmake --version`)
-- Full error message
-- Installation method attempted
-
----
-
-**Happy PTRAC parsing!** 🚀
-
----
-
-**Documentation**: [README.md](README.md) | [Technical Details](TECHNICAL_DETAILS.md)
-
-**Support**: https://github.com/quentinducasse/mcnptoolspro/issues
+- `build` is the canonical CMake build directory.
+- `build_hdf5manual` was only a temporary manual workaround and is not required.
+- Python code changes are picked up immediately through the editable install.
+- C++ changes require re-running `python install_dev.py` or rebuilding the
+  `_mcnptools_wrap` target.
